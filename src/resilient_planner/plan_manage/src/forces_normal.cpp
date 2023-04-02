@@ -1,11 +1,11 @@
 #include <plan_manage/nmpc_utils.h>
-#include "FORCESNLPsolver_normal_casadi2forces.c"
+#include "FORCESNLPsolver_normal_adtool2forces.c"
 #include "FORCESNLPsolver_normal_casadi.c"
 
 using namespace std;
 
 /* CasADi - FORCES interface */
-extern void FORCESNLPsolver_normal_casadi2forces(FORCESNLPsolver_normal_float *x,       /* primal var_nums                                         */
+extern solver_int32_default FORCESNLPsolver_normal_adtool2forces(FORCESNLPsolver_normal_float *x,       /* primal var_nums                                         */
                                                  FORCESNLPsolver_normal_float *y,       /* eq. constraint multiplers                           */
                                                  FORCESNLPsolver_normal_float *l,       /* ineq. constraint multipliers                        */
                                                  FORCESNLPsolver_normal_float *p,       /* parameters                                          */
@@ -27,7 +27,7 @@ namespace resilient_planner
   FORCESNormal::FORCESNormal()
   {
     /* FORCES PRO interface */
-    extfunc_eval_ = &FORCESNLPsolver_normal_casadi2forces;
+    extfunc_eval_ = &FORCESNLPsolver_normal_adtool2forces;
     params_.num_of_threads = 1;
     
   }
@@ -62,6 +62,7 @@ namespace resilient_planner
     params_.xinit[0] = mpc_output.at(1)(8);
     params_.xinit[1] = mpc_output.at(1)(9);
     params_.xinit[2] = mpc_output.at(1)(10);
+    std::cout << "X_init" << params_.xinit[0] << params_.xinit[1] << params_.xinit[2] << std::endl;
     // state velocity
     params_.xinit[3] = mpc_output.at(1)(11);
     params_.xinit[4] = mpc_output.at(1)(12);
@@ -136,7 +137,7 @@ namespace resilient_planner
       }
     }
 
-    return FORCESNLPsolver_normal_solve(&params_, &output_, &info_, NULL, extfunc_eval_);
+    return FORCESNLPsolver_normal_solve(&params_, &output_, &info_, FORCESNLPsolver_normal_internal_mem(0), NULL, extfunc_eval_);
   }
 
   void FORCESNormal::updateNormal(MPCDeque &mpc_output)

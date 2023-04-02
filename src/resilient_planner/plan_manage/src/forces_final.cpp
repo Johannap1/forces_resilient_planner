@@ -1,11 +1,11 @@
 #include <plan_manage/nmpc_utils.h>
-#include "FORCESNLPsolver_final_casadi2forces.c"
+#include "FORCESNLPsolver_final_adtool2forces.c"
 #include "FORCESNLPsolver_final_casadi.c"
 
 using namespace std;
 
 /* CasADi - FORCES interface */
-extern void FORCESNLPsolver_final_casadi2forces(FORCESNLPsolver_final_float *x,       /* primal vars                                         */
+extern solver_int32_default FORCESNLPsolver_final_adtool2forces(FORCESNLPsolver_final_float *x,       /* primal vars                                         */
                                                 FORCESNLPsolver_final_float *y,       /* eq. constraint multiplers                           */
                                                 FORCESNLPsolver_final_float *l,       /* ineq. constraint multipliers                        */
                                                 FORCESNLPsolver_final_float *p,       /* parameters                                          */
@@ -27,7 +27,7 @@ namespace resilient_planner
   FORCESFinal::FORCESFinal()
   {
     /* FORCES PRO interface */
-    extfunc_eval_final_ = &FORCESNLPsolver_final_casadi2forces;
+    extfunc_eval_final_ = &FORCESNLPsolver_final_adtool2forces;
     params_final_.num_of_threads = 1;
 
   }
@@ -135,7 +135,7 @@ namespace resilient_planner
       }
     }
 
-    return FORCESNLPsolver_final_solve(&params_final_, &output_final_, &info_final_, NULL, extfunc_eval_final_);
+    return FORCESNLPsolver_final_solve(&params_final_, &output_final_, &info_final_, FORCESNLPsolver_final_internal_mem(0), NULL, extfunc_eval_final_);
   }
 
   void FORCESFinal::updateFinal(MPCDeque &mpc_output)

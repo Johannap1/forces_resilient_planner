@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+
+<launch>
+  <!-- Model and simulation settings -->
+  <arg name="model_name" default="drone_hummingbird"/>
+  <arg name="dt" default="0.05"/>       <!-- value should correspond with integrator_stepsize in hovergames_settings.py! -->
+  <arg name="nonlin_control" default="true"/> <!-- value should correspond with model option nonlin in hovergames_settings.py! -->
+  <arg name="with_yaw" default="true"/> <!-- value should correspond with model option with_yaw in hovergames_settings.py! -->
+  <arg name="enable_wind" default="true"/> <!-- Set to true to add wind disturbance in simulator-->
+  <arg name="nonlin_sim" default="true"/> <!-- simulation model to use: could be linear or nonlinear independent of model used in LMPCC-->
+  <arg name="use_static_obstacle_map" default="false"/>
+
+  <!-- Start simulation node -->
+  <include file="$(find model_sim)/launch/model_sim.launch">
+    <arg name="verbose" value="false"/>
+    <arg name="enable_record" value="false"/>
+
+    <arg name="model" value="$(arg model_name)"/>
+    <arg name="nonlin" value="$(arg nonlin_sim)"/>
+    <arg name="with_yaw" value="$(arg with_yaw)"/>
+    <arg name="enable_wind" value="$(arg enable_wind)"/>
+    <arg name="external_controller" value="true"/>
+    <arg name="dt" value="$(arg dt)"/>
+    <arg name="integration_method" value="RK4"/>
+
+    <arg name="use_static_obstacle_map" value="$(arg use_static_obstacle_map)"/>
+    <arg name="static_obst_param_file" value="static_obstacles_hovergames.yaml"/>
+    <remap from="/drone_hummingbird/control" to="/resilient_planner_node/drone_hummingbird/control"/>
+  </include>
+
+  
+
+  <!-- Start costmap node -->
+  <group if="$(arg use_static_obstacle_map)">
+    <node name="costmap_node" pkg="costmap_2d" type="costmap_2d_node" >
+      <rosparam file="$(find costmap_2d)/launch/hovergames_params.yaml" command="load" ns="costmap"/>
+    </node>
+  </group>
+
+  <!-- Set up dynamic parameter configuration -->
+  <!-- <node name="rqt_reconfig" pkg="rqt_reconfigure" type="rqt_reconfigure"/> -->
+
+  <!-- Set up visualization -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find lmpcc)/rviz_config/hovergames/hovergames_simplesim.rviz"/>
+  
+
+  <include file="$(find resilient_planner)/launch/rotors_sim.launch">
+    <remap from="/hummingbird/ground_truth/odometry" to="/drone_hummingbird/state"/>
+  </include>
+
+  <node pkg="rosbag" name="record" type="record"
+    args="-o forces_simplesim.bag
+        /resilient_planner_node/drone_hummingbird/control
+        /resilient_planner_node/kino_path
+        /resilient_planner_node/ellipsoids
+        /drone_hummingbird/control
+        /drone_hummingbird/state
+        /drone_hummingbird/wind"
+  />
+
+</launch>

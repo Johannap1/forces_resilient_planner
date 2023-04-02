@@ -85,6 +85,7 @@ void OccMap::setOccupancy(const Eigen::Vector3d &pos)
 {
   Eigen::Vector3i id;
   posToIndex(pos, id);
+  // cout << "pos: " << pos.transpose() << endl;
   // cout << "id: " << id.transpose() << ", idx: " <<id(0) * grid_size_y_multiply_z_ + id(1) * grid_size_(2) + id(2) << ", is in map? " << isInMap(id) << endl;
   if (!isInMap(id))
     return;
@@ -96,10 +97,16 @@ int OccMap::getVoxelState(const Eigen::Vector3d &pos)
 {
   Eigen::Vector3i id;
   posToIndex(pos, id);
-  if (!isInMap(id))
+  //std::cout << "id is: " << id.transpose() << std::endl;
+  if (!isInMap(id)){
+    //std::cout << "not in map" << std::endl;
     return -1;
-  if (!isInLocalMap(id))
-    return 0;
+  }
+  if(!use_global_map_ )
+    if (!isInLocalMap(id))
+      return 0;
+  
+  //std::cout << "occ buffer value: " << occupancy_buffer_[id(0) * grid_size_y_multiply_z_ + id(1) * grid_size_(2) + id(2)] << std::endl;
   
   // (x, y, z) -> x*ny*nz + y*nz + z
   return occupancy_buffer_[id(0) * grid_size_y_multiply_z_ + id(1) * grid_size_(2) + id(2)] > min_occupancy_log_ ? 1 : 0;
@@ -107,10 +114,16 @@ int OccMap::getVoxelState(const Eigen::Vector3d &pos)
 
 int OccMap::getVoxelState(const Eigen::Vector3i &id)
 {
+
+  //std::cout << "id version: " << id.transpose() << std::endl;
   if (!isInMap(id))
     return -1;
-  if (!isInLocalMap(id))
-    return 0;
+  if(!use_global_map_ )
+    if (!isInLocalMap(id))
+      return 0;
+
+  
+  //std::cout << "occ buffer value: " << occupancy_buffer_[id(0) * grid_size_y_multiply_z_ + id(1) * grid_size_(2) + id(2)] << std::endl;
 
   // (x, y, z) -> x*ny*nz + y*nz + z
   return occupancy_buffer_[id(0) * grid_size_y_multiply_z_ + id(1) * grid_size_(2) + id(2)] > min_occupancy_log_ ? 1 : 0;
@@ -599,15 +612,22 @@ void OccMap::indepOdomCallback(const nav_msgs::OdometryConstPtr& odom)
 
 void OccMap::globalCloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
-  if(!use_global_map_ || has_global_cloud_)
+  std::cout << "Global cloud callback called" << std::endl;
+  if(!use_global_map_ || has_global_cloud_){
+    std::cout << "Global cloud is not being used" << std::endl;
     return;
+  }
 
 	pcl::PointCloud<pcl::PointXYZ> global_cloud;
   pcl::fromROSMsg(*msg, global_cloud);
   global_map_valid_ = true;
 
-  if (global_cloud.points.size() == 0)
+  if (global_cloud.points.size() == 0){
+    std::cout << "Global cloud is empty" << std::endl;
     return;
+  }
+  
+  std::cout << "Global point cloud of size" << global_cloud.points.size() << std::endl;
 
   pcl::PointXYZ pt;
   Eigen::Vector3d p3d;
@@ -732,7 +752,7 @@ void OccMap::init(const ros::NodeHandle& nh)
   node_.param("occ_map/local_radius_z", sensor_range_(2), -1.0);
 
   node_.param("occ_map/resolution", resolution_, 0.2);
-  node_.param("occ_map/use_global_map", use_global_map_, false);
+  node_.param("occ_map/use_global_map", use_global_map_, true);
 
 	node_.param("occ_map/depth_scale", depth_scale_, -1.0);
   node_.param("occ_map/use_shift_filter", use_shift_filter_, true);
@@ -868,7 +888,7 @@ void OccMap::init(const ros::NodeHandle& nh)
 	}
   curr_view_cloud_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/occ_map/local_view_cloud", 1);
   hist_view_cloud_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/occ_map/history_view_cloud", 1);
-	//global_cloud_sub_ = node_.subscribe<sensor_msgs::PointCloud2>("/global_cloud", 1, &OccMap::globalCloudCallback, this);
+	global_cloud_sub_ = node_.subscribe<sensor_msgs::PointCloud2>("/random_forest/all_map", 1, &OccMap::globalCloudCallback, this);
 	origin_pcl_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/occ_map/raw_pcl", 1);
   projected_pc_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/occ_map/filtered_pcl", 1);
 }

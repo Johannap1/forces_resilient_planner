@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(resilient_planner)
 
-add_definitions(-std=c++11)
+add_definitions(-std=c++14)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -w -g -fPIC")
@@ -40,13 +40,14 @@ find_package(catkin REQUIRED COMPONENTS
     mav_msgs
     message_generation
     occ_grid
+    model_sim
 )
 
 
 catkin_package(
  INCLUDE_DIRS include
  LIBRARIES resilient_planner
- CATKIN_DEPENDS occ_grid path_searching
+ CATKIN_DEPENDS occ_grid path_searching map_generator
 )
 
 

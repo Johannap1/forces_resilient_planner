@@ -33,6 +33,7 @@ set(SOURCE_FILES
   src/bound_visual.cpp
   src/mesh_visual.cpp
   src/vector_visual.cpp
+  src/ros_visuals.cpp
   src/ellipsoid_array_visual.cpp
   src/ellipsoid_array_display.cpp
   src/polyhedron_array_display.cpp

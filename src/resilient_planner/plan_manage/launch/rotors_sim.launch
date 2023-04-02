@@ -10,7 +10,8 @@
   <arg name="init_z" value="1.0"/> 
 
   <!-- topic of your odometry such as VIO or LIO -->
-  <arg name="odom_topic" value="/hummingbird/ground_truth/odometry" />
+  <!-- <arg name="odom_topic" value="/hummingbird/ground_truth/odometry" /> -->
+  <arg name="odom_topic" value="/drone_hovergames/state" />
   <!-- <arg name="odom_topic" value="/vid_estimator/imu_propagate" />  -->
   <arg name="cmd_topic" value="/hummingbird/command/trajectory" />
   <arg name="forces_topic" value="/vid_estimator/extForces" />
@@ -48,10 +49,10 @@
     <arg name="max_acc" value="3.0" />
 
 
-    <arg name="sim_odom_type" value="2" />  <!--1 is imu 2 is rotorS gt-->
+    <arg name="sim_odom_type" value="2" />  <!--1 is imu 0 is rotorS gt 2 is simplesim-->
 
     <arg name="mass" value="0.745319" />      
-    <arg name="use_global_map" value="false" />  
+    <arg name="use_global_map" value="true" />  
 
     <arg name="nmpc/w_stage_wp" value="7.0" />
     <arg name="nmpc/w_stage_input" value="1.0"/>
@@ -65,11 +66,23 @@
 
     <arg name="nmpc/w_input_rate" value="80.0" />
     <arg name="nmpc/ego_r" value="0.27"/>
-    <arg name="nmpc/ego_h" value="0.0425" />
+    <arg name="nmpc/ego_h" value="0.01" />
     <arg name="nmpc/g_acc" value="9.81" />
     <arg name="nmpc/drag_coefficient" value="0.33" />
       
     
   </include>
+
+  <!-- map generation -->
+  <node pkg="map_generator" name ="random_forest" type ="random_forest" output = "screen">          
+  </node>
+
+  <!-- <node
+	pkg="rosbag"
+	name="record"
+	type="record"
+	args="-O forest_data.bag 
+		/random_forest/all_map"
+	/> -->
 
 </launch>

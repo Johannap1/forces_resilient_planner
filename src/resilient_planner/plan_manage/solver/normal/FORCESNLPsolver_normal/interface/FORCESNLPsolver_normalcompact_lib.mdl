@@ -60,13 +60,13 @@ Model {
       }
     }
   }
-  Created		  "6/28/2021 3:20:02 PM"
+  Created		  "1/6/2023 7:44:07 AM"
   Creator		  "embotech AG"
   UpdateHistory		  "UpdateHistoryNever"
   ModifiedByFormat	  "%<Auto>"
   LastModifiedBy	  "embotech AG"
   ModifiedDateFormat	  "%<Auto>"
-  LastModifiedDate	  "6/28/2021 3:20:02 PM"
+  LastModifiedDate	  "1/6/2023 7:44:07 AM"
   RTWModifiedTimeStamp	  315310195
   ModelVersionFormat	  "1.%<AutoIncrement:2>"
   ConfigurationManager	  "None"
@@ -781,7 +781,7 @@ Model {
 	Description		" ---- Simulink block encapsulating your customized solver FORCESNLPsolver_normal ---- \n\n"
 				"FORCESNLPsolver_normal : A fast customized optimization solver.\n"
 "\n"
-"Copyright (C) 2013-2021 EMBOTECH AG [info@embotech.com]. All rights reserved.\n"
+"Copyright (C) 2013-2022 EMBOTECH AG [info@embotech.com]. All rights reserved.\n"
 "\n"
 "\n"
 "This software is intended for simulation and testing purposes only. \n"
@@ -804,21 +804,21 @@ Model {
 	Help			"FORCESNLPsolver_normal_simulinkBlockcompact provides an easy Simulink interface for simulating your customized solver.  \n"
 	"\nOUTPUTS = FORCESNLPsolver_normal(INPUTS) solves an optimization problem where:\n\n"
 	"INPUTS:\n"
-	" - num_of_threads - column vector of length 0\n "
-" - xinit - column vector of length 9\n "
-" - x0 - column vector of length 340\n "
-" - all_parameters - column vector of length 2600\n "
+	" - xinit - matrix of size [9x1]\n  "
+" - x0 - matrix of size [340x1]\n  "
+" - all_parameters - matrix of size [2600x1]\n  "
+" - num_of_threads - scalar\n  "
 
 	"\nOUTPUTS:\n"
-	" - outputs - column vector of length 340\n "
+	" - outputs - column vector of length 340\n  "
 
-	"\n For more information, see https://www.embotech.com/FORCES-Pro/How-to-use/Simulink-Interface/Simulink-Block \n "
+	"\n For more information, see https://forces.embotech.com/Documentation/simulink_interface/index.html \n "
 
-	Display			"port_label('input', 1, 'num_of_threads') \n  "
-"port_label('input', 2, 'xinit') \n  "
-"port_label('input', 3, 'x0') \n  "
-"port_label('input', 4, 'all_parameters') \n  "
-"port_label('output', 1, 'outputs') \n "
+	Display			"port_label('input', 1, 'xinit') \n  "
+"port_label('input', 2, 'x0') \n  "
+"port_label('input', 3, 'all_parameters') \n  "
+"port_label('input', 4, 'num_of_threads') \n  "
+"port_label('output', 1, 'outputs') \n  "
 "if( exist('FORCES_PRO_Logo.jpg','file') ), image(imread('FORCES_PRO_Logo.jpg'),'center','on'); elseif( exist(['interface',filesep,'FORCES_PRO_Logo.jpg'],'file') ), image(imread(['interface',filesep,'FORCES_PRO_Logo.jpg']),'center','on'); elseif( exist(['FORCESNLPsolver_normal',filesep,'interface',filesep,'FORCES_PRO_Logo.jpg'],'file') ), image(imread(['FORCESNLPsolver_normal',filesep,'interface',filesep,'FORCES_PRO_Logo.jpg']),'center','on'); end \n "
 
       }

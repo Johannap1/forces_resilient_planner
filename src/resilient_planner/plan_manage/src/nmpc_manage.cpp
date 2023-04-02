@@ -33,6 +33,9 @@ void NMPCManage::init(ros::NodeHandle &nh)
   { // use the imu
     odom_sub_ = nh.subscribe("/odom_world", 1, &NMPCManage::odometryCallback, this);
   }
+  else if (sim_odom_type == 2){
+    odom_sub_ = nh.subscribe("/drone_hummingbird/state", 1, &NMPCManage::odometryCallback, this);
+  }
   else
   { // use rotorS(velocity is in the body frame)
     odom_sub_ = nh.subscribe("/odom_world", 1, &NMPCManage::odometryTransCallback, this);
@@ -50,6 +53,9 @@ void NMPCManage::init(ros::NodeHandle &nh)
 void NMPCManage::mpcCallback(const ros::TimerEvent &e)
 {
   if (!exec_mpc_)  return;
+
+  cout << "external acc, x:" << external_acc_[0] << " y:" << external_acc_[1] << endl;
+  cout << "stateOdom, x:" << stateOdom_(0) << " y:" << stateOdom_(1) << endl;
 
   int status = nmpc_solver_.solveNMPC(stateOdom_, external_acc_);
   //  1 --- success
@@ -149,7 +155,8 @@ void NMPCManage::execFSMCallback(const ros::TimerEvent &e)
       else
       { 
         changeFSMExecState(INIT_YAW, "FSM");
-        call_init_yaw_ = true;
+        //call_init_yaw_ = true;
+        call_init_yaw_ = false;
       }
       break;
     }
@@ -166,6 +173,13 @@ void NMPCManage::execFSMCallback(const ros::TimerEvent &e)
           nmpc_solver_.callInitYaw(stateOdom_, init_yaw_);
         }
         call_init_yaw_ = false;
+        break;
+      }
+
+      else{
+        std::cout << "Skipping yaw initialization" << std::endl;
+        consider_force_ = true;
+        changeFSMExecState(GEN_NEW_TRAJ, "FSM");
         break;
       }
 
@@ -277,7 +291,9 @@ void NMPCManage::displayPath()
     path_msg.poses.push_back(pose);
   }
 
-  path_msg.header.frame_id = "world";
+  path_msg.header.frame_id = "map";
+
+  std::cout << "Length of path" << kino_path_.size() << std::endl;
   path_pub_.publish(path_msg);
 }
 
@@ -343,7 +359,7 @@ void NMPCManage::checkReplanCallback(const ros::TimerEvent &e)
 void NMPCManage::displayGoalPoint()
 {
   visualization_msgs::Marker sphere;
-  sphere.header.frame_id = "world";
+  sphere.header.frame_id = "map";
   sphere.header.stamp = ros::Time::now();
   sphere.type = visualization_msgs::Marker::SPHERE;
   sphere.action = visualization_msgs::Marker::ADD;

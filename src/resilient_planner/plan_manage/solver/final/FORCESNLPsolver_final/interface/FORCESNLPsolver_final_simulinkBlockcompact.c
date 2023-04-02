@@ -1,7 +1,7 @@
 /*
 FORCESNLPsolver_final : A fast customized optimization solver.
 
-Copyright (C) 2013-2021 EMBOTECH AG [info@embotech.com]. All rights reserved.
+Copyright (C) 2013-2022 EMBOTECH AG [info@embotech.com]. All rights reserved.
 
 
 This software is intended for simulation and testing purposes only. 
@@ -32,9 +32,7 @@ jurisdiction in case of any dispute.
 
 /* include FORCESPRO functions and defs */
 #include "../include/FORCESNLPsolver_final.h" 
-
-/* SYSTEM INCLUDES FOR TIMING ------------------------------------------ */
-
+#include "../include/FORCESNLPsolver_final_memory.h" 
 
 #if defined(MATLAB_MEX_FILE)
 #include "tmwtypes.h"
@@ -43,12 +41,8 @@ jurisdiction in case of any dispute.
 #include "rtwtypes.h"
 #endif
 
-typedef FORCESNLPsolver_finalinterface_float FORCESNLPsolver_finalnmpc_float;
-
-extern void FORCESNLPsolver_final_casadi2forces(double *x, double *y, double *l, double *p, double *f, double *nabla_f, double *c, double *nabla_c, double *h, double *nabla_h, double *hess, solver_int32_default stage, solver_int32_default iteration, solver_int32_default threadID);
-FORCESNLPsolver_final_extfunc pt2function_FORCESNLPsolver_final = &FORCESNLPsolver_final_casadi2forces;
-
-
+extern solver_int32_default FORCESNLPsolver_final_adtool2forces(double *x, double *y, double *l, double *p, double *f, double *nabla_f, double *c, double *nabla_c, double *h, double *nabla_h, double *hess, solver_int32_default stage, solver_int32_default iteration, solver_int32_default threadID);
+FORCESNLPsolver_final_extfunc pt2function_FORCESNLPsolver_final = &FORCESNLPsolver_final_adtool2forces;
 
 
 /*====================*
@@ -77,29 +71,33 @@ static void mdlInitializeSizes(SimStruct *S)
     if (!ssSetNumInputPorts(S, 4)) return;
     	
 	/* Input Port 0 */
-    ssSetInputPortMatrixDimensions(S,  0, 1, 1);
+    ssSetInputPortMatrixDimensions(S,  0, 9, 1);
     ssSetInputPortDataType(S, 0, SS_DOUBLE);
     ssSetInputPortComplexSignal(S, 0, COMPLEX_NO); /* no complex signals suppported */
     ssSetInputPortDirectFeedThrough(S, 0, 1); /* Feedthrough enabled */
-    ssSetInputPortRequiredContiguous(S, 0, 1); /*direct input signal access*/	
+    ssSetInputPortRequiredContiguous(S, 0, 1); /*direct input signal access*/
+	
 	/* Input Port 1 */
-    ssSetInputPortMatrixDimensions(S,  1, 9, 1);
+    ssSetInputPortMatrixDimensions(S,  1, 340, 1);
     ssSetInputPortDataType(S, 1, SS_DOUBLE);
     ssSetInputPortComplexSignal(S, 1, COMPLEX_NO); /* no complex signals suppported */
     ssSetInputPortDirectFeedThrough(S, 1, 1); /* Feedthrough enabled */
-    ssSetInputPortRequiredContiguous(S, 1, 1); /*direct input signal access*/	
+    ssSetInputPortRequiredContiguous(S, 1, 1); /*direct input signal access*/
+	
 	/* Input Port 2 */
-    ssSetInputPortMatrixDimensions(S,  2, 340, 1);
+    ssSetInputPortMatrixDimensions(S,  2, 2600, 1);
     ssSetInputPortDataType(S, 2, SS_DOUBLE);
     ssSetInputPortComplexSignal(S, 2, COMPLEX_NO); /* no complex signals suppported */
     ssSetInputPortDirectFeedThrough(S, 2, 1); /* Feedthrough enabled */
-    ssSetInputPortRequiredContiguous(S, 2, 1); /*direct input signal access*/	
+    ssSetInputPortRequiredContiguous(S, 2, 1); /*direct input signal access*/
+	
 	/* Input Port 3 */
-    ssSetInputPortMatrixDimensions(S,  3, 2600, 1);
+    ssSetInputPortMatrixDimensions(S,  3, 1, 1);
     ssSetInputPortDataType(S, 3, SS_DOUBLE);
     ssSetInputPortComplexSignal(S, 3, COMPLEX_NO); /* no complex signals suppported */
     ssSetInputPortDirectFeedThrough(S, 3, 1); /* Feedthrough enabled */
-    ssSetInputPortRequiredContiguous(S, 3, 1); /*direct input signal access*/ 
+    ssSetInputPortRequiredContiguous(S, 3, 1); /*direct input signal access*/
+ 
 
 
 	/* initialize output ports - there are 1 in total */
@@ -127,8 +125,6 @@ static void mdlInitializeSizes(SimStruct *S)
     /* ssSetOptions(S, (SS_OPTION_EXCEPTION_FREE_CODE |
 		             SS_OPTION_WORKS_WITH_CODE_REUSE)); */
 	ssSetOptions(S, SS_OPTION_EXCEPTION_FREE_CODE );
-
-	
 }
 
 #if defined(MATLAB_MEX_FILE)
@@ -185,10 +181,6 @@ static void mdlSetDefaultPortDataTypes(SimStruct *S)
     ssSetOutputPortDataType(S, 0, SS_DOUBLE);
 }
 
-
-
-
-
 /* Function: mdlOutputs =======================================================
  *
 */
@@ -200,43 +192,38 @@ static void mdlOutputs(SimStruct *S, int_T tid)
 	FILE *fp = NULL;
 
 	/* Simulink data */
-	const solver_int32_unsigned *num_of_threads = (const solver_int32_unsigned*) ssGetInputPortSignal(S,0);
-	const real_T *xinit = (const real_T*) ssGetInputPortSignal(S,1);
-	const real_T *x0 = (const real_T*) ssGetInputPortSignal(S,2);
-	const real_T *all_parameters = (const real_T*) ssGetInputPortSignal(S,3);
+	const real_T *xinit = (const real_T*) ssGetInputPortSignal(S,0);
+	const real_T *x0 = (const real_T*) ssGetInputPortSignal(S,1);
+	const real_T *all_parameters = (const real_T*) ssGetInputPortSignal(S,2);
+	const real_T *num_of_threads = (const real_T*) ssGetInputPortSignal(S,3);
 	
     real_T *outputs = (real_T*) ssGetOutputPortSignal(S,0);
-	
 	
 
 	/* Solver data */
 	static FORCESNLPsolver_final_params params;
 	static FORCESNLPsolver_final_output output;
-	static FORCESNLPsolver_final_info info;	
-	solver_int32_default exitflag;
-
-	/* Extra NMPC data */
-	
+	static FORCESNLPsolver_final_info info;
+    static FORCESNLPsolver_final_mem * mem;
+	solver_int32_default solver_exitflag;
 
 	/* Copy inputs */
-	for( i=0; i<9; i++)
-	{ 
-		params.xinit[i] = (double) xinit[i]; 
+	for(i = 0; i < 9; i++)
+	{
+		params.xinit[i] = (double) xinit[i];
 	}
 
-	for( i=0; i<340; i++)
-	{ 
-		params.x0[i] = (double) x0[i]; 
+	for(i = 0; i < 340; i++)
+	{
+		params.x0[i] = (double) x0[i];
 	}
 
-	for( i=0; i<2600; i++)
-	{ 
-		params.all_parameters[i] = (double) all_parameters[i]; 
+	for(i = 0; i < 2600; i++)
+	{
+		params.all_parameters[i] = (double) all_parameters[i];
 	}
 
-	params.num_of_threads = *num_of_threads;
-
-	
+	params.num_of_threads = (solver_int32_unsigned) num_of_threads[0];
 
 	
 
@@ -250,8 +237,13 @@ static void mdlOutputs(SimStruct *S, int_T tid)
 		rewind(fp);
 	#endif
 
+    if (mem == NULL)
+    {
+        mem = FORCESNLPsolver_final_internal_mem(0);
+    }
+
 	/* Call solver */
-	exitflag = FORCESNLPsolver_final_solve(&params, &output, &info, fp , pt2function_FORCESNLPsolver_final);
+	solver_exitflag = FORCESNLPsolver_final_solve(&params, &output, &info, mem, fp , pt2function_FORCESNLPsolver_final);
 
 	#if SET_PRINTLEVEL_FORCESNLPsolver_final > 0
 		/* Read contents of printfs printed to file */
@@ -263,133 +255,109 @@ static void mdlOutputs(SimStruct *S, int_T tid)
 		fclose(fp);
 	#endif
 
-	
-
 	/* Copy outputs */
-	for( i=0; i<17; i++)
-	{ 
-		outputs[i] = (real_T) output.x01[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[i] = (real_T) output.x01[i];
 	}
 
-	k=17; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x02[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[17 + i] = (real_T) output.x02[i];
 	}
 
-	k=34; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x03[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[34 + i] = (real_T) output.x03[i];
 	}
 
-	k=51; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x04[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[51 + i] = (real_T) output.x04[i];
 	}
 
-	k=68; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x05[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[68 + i] = (real_T) output.x05[i];
 	}
 
-	k=85; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x06[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[85 + i] = (real_T) output.x06[i];
 	}
 
-	k=102; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x07[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[102 + i] = (real_T) output.x07[i];
 	}
 
-	k=119; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x08[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[119 + i] = (real_T) output.x08[i];
 	}
 
-	k=136; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x09[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[136 + i] = (real_T) output.x09[i];
 	}
 
-	k=153; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x10[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[153 + i] = (real_T) output.x10[i];
 	}
 
-	k=170; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x11[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[170 + i] = (real_T) output.x11[i];
 	}
 
-	k=187; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x12[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[187 + i] = (real_T) output.x12[i];
 	}
 
-	k=204; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x13[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[204 + i] = (real_T) output.x13[i];
 	}
 
-	k=221; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x14[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[221 + i] = (real_T) output.x14[i];
 	}
 
-	k=238; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x15[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[238 + i] = (real_T) output.x15[i];
 	}
 
-	k=255; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x16[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[255 + i] = (real_T) output.x16[i];
 	}
 
-	k=272; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x17[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[272 + i] = (real_T) output.x17[i];
 	}
 
-	k=289; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x18[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[289 + i] = (real_T) output.x18[i];
 	}
 
-	k=306; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x19[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[306 + i] = (real_T) output.x19[i];
 	}
 
-	k=323; 
-	for( i=0; i<17; i++)
-	{ 
-		outputs[k++] = (real_T) output.x20[i]; 
+	for(i = 0; i < 17; i++)
+	{
+		outputs[323 + i] = (real_T) output.x20[i];
 	}
 
 	
 }
-
-
-
 
 
 /* Function: mdlTerminate =====================================================

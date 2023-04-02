@@ -29,7 +29,7 @@ function dx = nonlinear_dynamics(x, u, p)
     velocity = [vx; vy; vz];
     drag_acc = R * linear_drag_coefficient_matrix * R.'* velocity;
     
-    acc = z_B*thrust_c/pr.mass + p(index.p.extForceAcc(1:3)) -[0.00; 0; pr.g] - drag_acc;
+    acc = z_B*thrust_c/pr.mass + p(index.p.extForceAcc(1:3)) -[0.00; 0; pr.g]; % - drag_acc;
         
 
     droll   = rollrate_c;

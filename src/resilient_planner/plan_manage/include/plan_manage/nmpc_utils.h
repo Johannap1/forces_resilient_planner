@@ -38,6 +38,12 @@
 
 #include "FORCESNLPsolver_normal.h"
 #include "FORCESNLPsolver_final.h"
+#include "FORCESNLPsolver_normal_memory.h"
+#include "FORCESNLPsolver_final_memory.h"
+
+#include "model_sim/DroneHovergamesControl.h"
+#include <memory>
+#include <decomp_ros_utils/ros_visuals.h>
 
 using namespace std;
 
@@ -68,6 +74,8 @@ namespace resilient_planner
     FORCESNLPsolver_normal_output output_;
     FORCESNLPsolver_normal_params params_;
     FORCESNLPsolver_normal_info info_;
+    // FORCESNLPsolver_normal_mem * mem_;
+    // mem_ =  FORCESNLPsolver_normal_internal_mem(0);
     FORCESParams value_;
     void setParasNormal(double w_stage_wp,  double w_stage_input, double w_input_rate,
                         double w_terminal_wp, double w_terminal_input);
@@ -182,6 +190,7 @@ namespace resilient_planner
 
     // for gazebo simulation
     trajectory_msgs::MultiDOFJointTrajectory trajectory_msg;
+    model_sim::DroneHovergamesControl control_msg_;
 
     /* paramaters  */
     double g, mass;
@@ -208,8 +217,9 @@ namespace resilient_planner
     ros::Subscriber cloud_sub_, extforce_sub_ ;
     ros::Publisher ellipsoid_pub_, poly_pub_, ref_marker_pub_, nmpc_marker_pub_;
     ros::Time pre_mpc_start_time_ , mpc_start_time_, kino_start_time_, change_yaw_time_;
-    ros::Publisher pos_cmd_pub_, traj_cmd_pub_, cmd_vis_pub_;
+    ros::Publisher pos_cmd_pub_, traj_cmd_pub_, cmd_vis_pub_, control_cmd_pub;
     ros::Timer cmd_timer_;
+    std::unique_ptr<ROSMarkerPublisher> ros_markers_;
 
     /* reference kinodynamic a star path */
     std::unique_ptr<KinodynamicAstar> kino_path_finder_;

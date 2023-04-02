@@ -1,4 +1,7 @@
+#include <memory>
+#include <decomp_ros_utils/ros_visuals.h>
 #include <plan_manage/nmpc_utils.h>
+
 
 constexpr double PI = 3.1415926;
 
@@ -85,10 +88,13 @@ namespace resilient_planner
     // use rotors simulator
     cmd_timer_ = nh.createTimer(ros::Duration(0.01), &NMPCSolver::cmdTrajCallback, this); // 5ms
     traj_cmd_pub_ = nh.advertise<trajectory_msgs::MultiDOFJointTrajectory>("/pos_cmd", 50);
+    control_cmd_pub = nh.advertise<model_sim::DroneHovergamesControl>("drone_hummingbird/control", 50);
+    
+    ros_markers_.reset(new ROSMarkerPublisher(nh, "/resilient_planner_node/ellipsoids", "map", 200));
 
     // ego info
     ego_size_ << ego_r * ego_r, 0.0, 0.0,
-        0.0, ego_r * ego_r, 0.0,
+        0.0, 2 * ego_r * ego_r, 0.0,
         0.0, 0.0, ego_h * ego_h;
 
     //drag_coefficient_matrix
@@ -187,6 +193,7 @@ namespace resilient_planner
     }
     else
     {
+      cout << "enter here:" << endl;
       status = kino_path_finder_->search(start_pt_, start_v_, start_a_, end_pt_, end_v_, true);
     }
 
@@ -334,7 +341,7 @@ namespace resilient_planner
   void NMPCSolver::displayPoly()
   {
     decomp_ros_msgs::PolyhedronArray poly_msg = DecompROS::polyhedron_array_to_ros(polys);
-    poly_msg.header.frame_id = "world";
+    poly_msg.header.frame_id = "map";
     poly_pub_.publish(poly_msg);
   }
 
@@ -360,8 +367,9 @@ namespace resilient_planner
     stateMpc_ = stateMpc;
 
     // update the mpc output
-    if (!initialized_output_ || exit_code != 1)
-      initMPCOutput();
+    //if (!initialized_output_ || exit_code != 1)
+    
+    initMPCOutput();
 
     // for visualization
     poly_constraints_.clear();
@@ -540,7 +548,21 @@ namespace resilient_planner
       }
     }
 
+    // for (int i = 0; i < planning_horizon_; i++)
+    // {
+    //   cout << "Input: " << i << " :" << (mpc_output_.at(i)).segment(0,4) << endl;
+    //   cout << "States: " << i << " :" << (mpc_output_.at(i)).segment(8,9) << endl;
+    // }
+
     mpc_output_.at(20) = mpc_output_.at(19);
+
+    control_msg_.u[0] = mpc_output_.at(0)(0);
+    control_msg_.u[1] = mpc_output_.at(0)(1);
+    control_msg_.u[2] = mpc_output_.at(0)(2);
+    control_msg_.u[3] = mpc_output_.at(0)(3);
+
+    control_msg_.header.stamp = ros::Time::now();
+    control_cmd_pub.publish(control_msg_);
 
     /* visulizations  */
     displayNMPCPoints();
@@ -703,7 +725,7 @@ namespace resilient_planner
                            const Eigen::Vector4d &color)
   {
     visualization_msgs::Marker mk_state;
-    mk_state.header.frame_id = "world";
+    mk_state.header.frame_id = "map";
     mk_state.header.stamp = ros::Time::now();
     mk_state.id = id;
     mk_state.type = visualization_msgs::Marker::ARROW;
@@ -736,7 +758,7 @@ namespace resilient_planner
   void NMPCSolver::displayNMPCPoints()
   {
     visualization_msgs::Marker mk;
-    mk.header.frame_id = "world";
+    mk.header.frame_id = "map";
     mk.header.stamp = ros::Time::now();
     mk.type = visualization_msgs::Marker::LINE_STRIP;
     mk.action = visualization_msgs::Marker::DELETE;
@@ -772,7 +794,7 @@ namespace resilient_planner
   void NMPCSolver::displayRefPoints()
   {
     visualization_msgs::Marker mk;
-    mk.header.frame_id = "world";
+    mk.header.frame_id = "map";
     mk.header.stamp = ros::Time::now();
     mk.type = visualization_msgs::Marker::SPHERE_LIST;
     mk.action = visualization_msgs::Marker::DELETE;
@@ -807,6 +829,9 @@ namespace resilient_planner
 
   void NMPCSolver::displayEllipsoids()
   {
+    ROSPointMarker &ellipse = ros_markers_->getNewPointMarker("CYLINDER");
+    ellipse.setColor(0., 1., 1., 0.325);
+    
     decomp_ros_msgs::EllipsoidArray ellipsoids;
     for (int i = 0; i < planning_horizon_; i++)
     {
@@ -824,11 +849,47 @@ namespace resilient_planner
           ellipsoid.E[3 * x + y] = C(x, y);
         }
       }
+
+      // Compute 2D projection--------------------
+
+      Eigen::SelfAdjointEigenSolver<Mat3f> es2(ellipsoid_matrices_[i]);
+
+      Eigen::Vector3d scale(2 * es2.eigenvalues()[0], 2 * es2.eigenvalues()[1],
+                                2 * es2.eigenvalues()[2]);
+                            
+      //std::cout << "Scale" << scale[0] << scale[1] << scale[2] <<std::endl;
+
+      //Quatf q(es2.eigenvectors().determinant() * es2.eigenvectors());
+      //Eigen::Vector3d euler = q.toRotationMatrix().eulerAngles(2, 1, 0);
+
+      //std::cout << "Euler" << euler[0] << euler[1] << euler[2] <<std::endl;
+      //std::cout << "Yaw:" << mpc_output_.at(i)(16) << std::endl;
+
+      ///-----------------------------------------
+
+      ellipse.setScale(scale[1], scale[2], 0.2);
+
+      geometry_msgs::Pose copied_pose;
+      tf::Quaternion q = tf::createQuaternionFromRPY(0., 0., mpc_output_.at(i)(16));
+      geometry_msgs::Quaternion result;
+      result.x = q.getX();
+      result.y = q.getY();
+      result.z = q.getZ();
+      result.w = q.getW();
+
+      copied_pose.position.x = mpc_output_.at(i)(8);
+      copied_pose.position.y = mpc_output_.at(i)(9);
+      
+      copied_pose.orientation = result;
+      
+      ellipse.addPointMarker(copied_pose);
+
       ellipsoids.ellipsoids.push_back(ellipsoid);
     }
 
-    ellipsoids.header.frame_id = "world";
+    ellipsoids.header.frame_id = "map";
     ellipsoid_pub_.publish(ellipsoids);
+    ros_markers_->publish();
   }
 
   void NMPCSolver::calculate_yaw(Eigen::Vector3d pos, Eigen::Vector3d pos_next)
@@ -866,7 +927,7 @@ namespace resilient_planner
   {
     trajectory_msgs::MultiDOFJointTrajectory trajectory_msg;
     trajectory_msg.header.stamp = ros::Time::now();
-    trajectory_msg.header.frame_id = "world";
+    trajectory_msg.header.frame_id = "map";
 
     trajectory_msgs::MultiDOFJointTrajectoryPoint point_msg;
     point_msg.transforms.resize(1);
@@ -885,9 +946,14 @@ namespace resilient_planner
         double yaw_temp = realOdom_(8) + (ros::Time::now() - change_yaw_time_).toSec() * init_yaw_dot_;
         double desired_yaw = init_yaw_ - realOdom_(8) >= 0 ? min(yaw_temp, init_yaw_) : max(yaw_temp, init_yaw_);
 
+        control_msg_.u[2] = 0.01*desired_yaw;
+
         Eigen::Vector3d desired_position(realOdom_(0), realOdom_(1), realOdom_(2));
         mav_msgs::msgMultiDofJointTrajectoryFromPositionYaw(desired_position, desired_yaw, &trajectory_msg);
         traj_cmd_pub_.publish(trajectory_msg);
+
+        control_msg_.header.stamp = ros::Time::now();
+        control_cmd_pub.publish(control_msg_);
 
         break;
       }
@@ -899,7 +965,6 @@ namespace resilient_planner
 
       case PUB_TRAJ:
       {
-
         if (!have_mpc_traj_)  break;
 
         ros::Time time_now = ros::Time::now();
